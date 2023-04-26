@@ -46,7 +46,8 @@ $routes->post('/api/mobile/v1/save_shipping_address', 'App::saveShippingAddress'
 $routes->get('/api/mobile/v1/get_shipping_address/(:any)', 'App::getClientShippingAddress/$1');
 $routes->get('/api/mobile/v1/get_product_category/(:any)', 'App::getAllCategories/$1');
 $routes->post('/api/mobile/v1/client_request_order', 'App::clientRequestOrder');
-$routes->post('/api/mobile/v1/tracking_order', 'App::trackingOrderByReference');
+$routes->get('/api/mobile/v1/tracking_order/(:any)', 'App::trackingOrderByReference/$1');
+$routes->get('/api/mobile/v1/get_nearby_client_request/(:any)', 'App::getProductToDelivery/$1');
 $routes->post('/api/mobile/v1/create_client_account', 'App::createClientAccount');
 
 $routes->get('/api/web/v1/get_customer_orders', 'Home::getAllOrders');

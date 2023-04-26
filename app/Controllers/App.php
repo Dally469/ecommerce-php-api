@@ -305,18 +305,18 @@ class App extends BaseController
 		}
 	}
 
-    public function trackingOrderByReference(): Response
+    public function trackingOrderByReference($refNo): Response
 	{
 		$this->appendHeader();
         $input = json_decode(file_get_contents('php://input'));
 		$mdl = new OrderModel();
 		$detailMdl = new OrderDetailModel();
-        $refNo = $input->referenceNo;
 
-		$order = $mdl->select('orders.id,referenceNo,orders.clientId,shopId,s.name as shop,
-        ca.address,orders.status')
+		$order = $mdl->select('orders.id,referenceNo,orders.clientId,shopId,s.name as shop,s.latitude as sLatitude,s.longitude as sLongitude,
+        ca.title as addressTitle,ca.address,ca.latitude as dLatitude,ca.longitude as dLongitude,d.names as driver,d.phone as driverPhone,orders.status')
             ->join("shops s","s.id = orders.shopId", "left")
             ->join("client_addresses ca","ca.id = orders.addressId","left")
+            ->join("drivers d","d.id = orders.driverId","left")
 			->where("referenceNo", $refNo)
 			->get()->getRow();
         $details = $detailMdl->select("order_details.id,p.productName,product_price, quantity")
@@ -352,6 +352,46 @@ class App extends BaseController
 		return $this->response->setStatusCode(200)->setJSON(['status' => 200, 'message' => 'Account successful created']);
 	}
 
+    public function approveArrived(): Response
+	{
+		$this->appendHeader();
+        $input = json_decode(file_get_contents('php://input'));
+		$mdl = new ClientModel();
+        if (!isset($input->phone)) {
+            return $this->response->setStatusCode(500)->setJSON(['status' => 500, 'message' => 'Invalid data, please try again']);
+        }
+        if (strlen($input->phone) < 10) {
+            return $this->response->setStatusCode(500)->setJSON(['status' => 500, 'message' => 'Invalid phone number']);
+        }
+        $check = $mdl->isPhoneExist($input->phone);
+        if ($check) {
+            return $this->response->setStatusCode(500)->setJSON(['status' => 500, 'message' => 'Already exist phone number']);
+        }
 
+        $mdl->save([
+            "names" => $input->names,
+            "phone" => $input->phone,
+            "email" => "",
+            "coupon" => "",
+            "photo" => ""
+        ]);
+		return $this->response->setStatusCode(200)->setJSON(['status' => 200, 'message' => 'Account successful created']);
+	}
 
+    public function getProductToDelivery($id): Response
+	{
+		$this->appendHeader();
+        $input = json_decode(file_get_contents('php://input'));
+		$mdl = new OrderModel();
+		$order = $mdl->select('orders.id,referenceNo,orders.clientId,shopId,s.name as shop,s.latitude as sLatitude,s.longitude as sLongitude,
+        ca.title as addressTitle,ca.address,ca.latitude as dLatitude,ca.longitude as dLongitude,d.names as driver,d.phone as driverPhone,orders.status')
+            ->join("shops s","s.id = orders.shopId", "left")
+            ->join("client_addresses ca","ca.id = orders.addressId","left")
+            ->join("drivers d","d.id = orders.driverId","left")
+			->where("driverId", $id)
+			->get()->getResultArray();
+       
+
+		return $this->response->setJSON($order);
+	}
 }
