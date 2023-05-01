@@ -161,6 +161,23 @@ class App extends BaseController
 		return $this->response->setJSON($builder);
 	}
 
+    public function getAllProductByCategoryId($id): Response
+	{
+		$this->appendHeader();
+		$productModel = new ProductModel();
+
+		$builder = $productModel->select("products.*,products.productCategory as categoryId, c.title as productCategory,s.name as shopName,z.id as zoneId, z.zoneName")
+			->join("categories c", "c.id = products.productCategory", "left")
+			->join("shops s", "s.id = products.shopId", "left")
+			->join("zones z", "z.id = s.zoneId", "left")
+			->orderBy('products.id', 'DESC')
+			->groupBy('products.id')
+			->where("products.productCategory", $id)
+			->get()->getResultArray();
+
+		return $this->response->setJSON($builder);
+	}
+
     public function getSimilarProducts($id): Response
 	{
 		$this->appendHeader();
@@ -326,6 +343,22 @@ class App extends BaseController
 
 		return $this->response->setJSON(['order' => $order, 'orderData' => $details]);
 	}
+
+    public function orderOrderPackageItems($orderId): Response
+	{
+		$this->appendHeader();
+        $input = json_decode(file_get_contents('php://input'));
+		$detailMdl = new OrderDetailModel();
+        if (!isset($orderId)) {
+            return $this->response->setStatusCode(500)->setJSON(['status' => 500, 'message' => 'Invalid data, please try again']);
+        }
+        $result = $detailMdl->select("order_details.id,p.productName,product_price,p.productPhoto, quantity")
+            ->join("products p","p.id = order_details.product_id")
+            ->where("order_id", $orderId)
+            ->get()->getResultArray();
+
+		return $this->response->setJSON($result);
+	}
     public function createClientAccount(): Response
 	{
 		$this->appendHeader();
@@ -338,60 +371,117 @@ class App extends BaseController
             return $this->response->setStatusCode(500)->setJSON(['status' => 500, 'message' => 'Invalid phone number']);
         }
         $check = $mdl->isPhoneExist($input->phone);
-        if ($check) {
+        if ($check != null) {
             return $this->response->setStatusCode(500)->setJSON(['status' => 500, 'message' => 'Already exist phone number']);
         }
 
-        $mdl->save([
+        $data = [
             "names" => $input->names,
             "phone" => $input->phone,
             "email" => "",
             "coupon" => "",
             "photo" => ""
-        ]);
-		return $this->response->setStatusCode(200)->setJSON(['status' => 200, 'message' => 'Account successful created']);
+        ];
+
+        $result = $mdl->insert($data);
+		return $this->response->setStatusCode(200)->setJSON(['status' => 200,"clientId"=> $result,"data"=>$data, 'message' => 'Account successful created']);
 	}
 
-    public function approveArrived(): Response
+    public function startPackageDelivering(): Response
 	{
 		$this->appendHeader();
         $input = json_decode(file_get_contents('php://input'));
-		$mdl = new ClientModel();
-        if (!isset($input->phone)) {
+		$mdl = new OrderModel();
+        if (!isset($input->id)) {
             return $this->response->setStatusCode(500)->setJSON(['status' => 500, 'message' => 'Invalid data, please try again']);
         }
-        if (strlen($input->phone) < 10) {
-            return $this->response->setStatusCode(500)->setJSON(['status' => 500, 'message' => 'Invalid phone number']);
-        }
-        $check = $mdl->isPhoneExist($input->phone);
-        if ($check) {
-            return $this->response->setStatusCode(500)->setJSON(['status' => 500, 'message' => 'Already exist phone number']);
+      
+        $mdl->save([
+            "id" => $input->id,
+            "status" => "2"
+        ]);
+		return $this->response->setStatusCode(200)->setJSON(['status' => 200, 'message' => 'Package delivery started']);
+	}
+
+    public function uploadImage(): ResponseInterface
+    {
+        $mdl = new ClientModel();
+        $imageFile = $this->request->getFile('image');
+        $id = $this->request->getPost('clientId');
+        $sex = $this->request->getPost('sex');
+        $email = $this->request->getPost('email');
+
+        // var_dump($sex); die();
+        if ($imageFile->isValid()) {
+            $imageFile->move('./uploads');
+            $file =  $imageFile->getName();
+            $imagePath = base_url() . '/uploads/' . $file;
         }
 
-        $mdl->save([
-            "names" => $input->names,
-            "phone" => $input->phone,
-            "email" => "",
-            "coupon" => "",
-            "photo" => ""
-        ]);
-		return $this->response->setStatusCode(200)->setJSON(['status' => 200, 'message' => 'Account successful created']);
-	}
+        if ($imageFile != null) {
+			$mdl->save([
+				"id" => $id,
+                "email" => $email,
+                "photo" => $file
+			]);
+			return $this->response->setJSON(array("type" => "success", "message" => "Profile Updated Successful"));
+		}
+
+
+        return $this->response->setStatusCode(500)->setJSON($imageFile->getErrorString());
+    }
 
     public function getProductToDelivery($id): Response
 	{
 		$this->appendHeader();
         $input = json_decode(file_get_contents('php://input'));
 		$mdl = new OrderModel();
-		$order = $mdl->select('orders.id,referenceNo,orders.clientId,shopId,s.name as shop,s.latitude as sLatitude,s.longitude as sLongitude,
-        ca.title as addressTitle,ca.address,ca.latitude as dLatitude,ca.longitude as dLongitude,d.names as driver,d.phone as driverPhone,orders.status')
-            ->join("shops s","s.id = orders.shopId", "left")
-            ->join("client_addresses ca","ca.id = orders.addressId","left")
-            ->join("drivers d","d.id = orders.driverId","left")
+		$detailMdl = new OrderDetailModel();
+		$order = $mdl->select('orders.id,referenceNo,orders.clientId,c.names as client,c.phone,c.photo,
+        ca.title as addressTitle,ca.address,ca.latitude as dLatitude,ca.longitude as dLongitude,orders.status')
+            ->join("client_addresses ca","ca.id = orders.addressId")
+            ->join("clients c","c.id = orders.clientId")
 			->where("driverId", $id)
 			->get()->getResultArray();
-       
 
 		return $this->response->setJSON($order);
+	}
+
+    public function checkingClientMembership(): Response
+	{
+		$this->appendHeader();
+        $input = json_decode(file_get_contents('php://input'));
+		$mdl = new ClientModel();
+		$phone = $input->phone;
+        
+        try{
+            if (!isset($input->phone)) {
+                return $this->response->setStatusCode(500)->setJSON(['status' => 500, 'message' => 'Invalid data, please try again']);
+            }
+            if (strlen($input->phone) < 10) {
+                return $this->response->setStatusCode(500)->setJSON(['status' => 500, 'message' => 'Invalid phone number']);
+            }
+            $check = $mdl->isPhoneExist($input->phone);
+            if ($check != null) {
+                
+                $data = $mdl->select("id,names,phone,email,coupon,photo")
+                    ->where("id", $check->id)
+                    ->get()->getRow();
+    
+            return $this->response->setStatusCode(200)->setJSON($data);
+            }else{
+                
+            return $this->response->setStatusCode(400)->setJSON(["error"=>"Error", "message"=> "Phone number not exist"]);
+            }
+            
+        }catch (\Exception $e) {
+			if ($e->getCode() == 1062) {
+				return $this->response->setStatusCode(500)->setJSON(array("type" => "error", "message" => "Phone number already registered"));
+			}
+			if (strpos($e->getMessage(), "Undefined property") !== false) {
+				return $this->response->setStatusCode(400)->setJSON(array("error" => "Missing piece", "messages" => "Please make sure all required data is sent" . $e->getMessage()));
+			}
+			return $this->response->setStatusCode(403)->setJSON(array("error" => "Error occurred", "message" => $e->getMessage()));
+		}
 	}
 }

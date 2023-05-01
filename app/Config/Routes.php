@@ -41,6 +41,7 @@ $routes->get('/api/mobile/v1', 'App::index');
 $routes->get('/api/mobile/v1/generate_reference_no', 'App::generateReferenceNo');
 $routes->get('/api/mobile/v1/get_shop_categories', 'App::getShopCategories');
 $routes->get('/api/mobile/v1/get_all_products_by_shop_category/(:any)', 'App::getAllProductByBusinessCategoryId/$1');
+$routes->get('/api/mobile/v1/get_all_products_by_category/(:any)', 'App::getAllProductByCategoryId/$1');
 $routes->get('/api/mobile/v1/get_similar_products/(:any)', 'App::getSimilarProducts/$1');
 $routes->post('/api/mobile/v1/save_shipping_address', 'App::saveShippingAddress');
 $routes->get('/api/mobile/v1/get_shipping_address/(:any)', 'App::getClientShippingAddress/$1');
@@ -48,7 +49,11 @@ $routes->get('/api/mobile/v1/get_product_category/(:any)', 'App::getAllCategorie
 $routes->post('/api/mobile/v1/client_request_order', 'App::clientRequestOrder');
 $routes->get('/api/mobile/v1/tracking_order/(:any)', 'App::trackingOrderByReference/$1');
 $routes->get('/api/mobile/v1/get_nearby_client_request/(:any)', 'App::getProductToDelivery/$1');
+$routes->get('/api/mobile/v1/get_ordert_request_items/(:any)', 'App::orderOrderPackageItems/$1');
 $routes->post('/api/mobile/v1/create_client_account', 'App::createClientAccount');
+$routes->post('/api/mobile/v1/start_package_delivery', 'App::startPackageDelivering');
+$routes->post('/api/mobile/v1/upload_image', 'App::uploadImage');
+$routes->post('/api/mobile/v1/checking_client_membership', 'App::checkingClientMembership');
 
 $routes->get('/api/web/v1/get_customer_orders', 'Home::getAllOrders');
 

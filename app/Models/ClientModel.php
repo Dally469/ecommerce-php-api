@@ -4,7 +4,7 @@ use CodeIgniter\Model;
 class ClientModel extends Model
 {
     protected $table = "clients";
-    protected $allowedFields = ["id","names", " phone","email","coupon","photo","status"];
+    protected $allowedFields = ["id","names", "phone","email","coupon","photo","status"];
     protected $useTimestamps = true;
 
     public function checkUser($value, $key = "phone")
@@ -16,7 +16,7 @@ class ClientModel extends Model
     }
  
     public function isPhoneExist($phone){
-      $res = $this->select('clients.id')->where("phone", $phone)->get();
+      $res = $this->select('clients.id,phone')->where("clients.phone", $phone)->get();
       return $res->getRow();
     }
    
